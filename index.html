@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SkyDive Pro: Queda Livre</title>
+    <style>
+        /* --- UI & UX --- */
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; touch-action: none; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* HUD */
+        .hud-panel {
+            padding: 20px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            display: flex; justify-content: space-between; align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .stat-box { background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 8px; backdrop-filter: blur(5px); border-left: 4px solid #00d2ff; margin: 5px; }
+        .stat-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 24px; font-weight: bold; font-family: monospace; }
+        
+        /* Mobile responsive HUD */
+        @media (max-width: 768px) {
+            .hud-panel { padding: 10px; }
+            .stat-box { padding: 8px 15px; }
+            .stat-label { font-size: 10px; }
+            .stat-value { font-size: 18px; }
+        }
+        
+        .center-hud {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        #crosshair {
+            width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #altimeter-bar {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            width: 10px; height: 300px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden;
+        }
+        #altimeter-fill {
+            width: 100%; height: 100%; background: linear-gradient(to top, #ff0000, #ffff00, #00ff00);
+            transform-origin: bottom; transform: scaleY(1); transition: transform 0.1s;
+        }
+        
+        @media (max-width: 768px) {
+            #altimeter-bar { height: 200px; width: 8px; right: 10px; }
+        }
+
+        /* Virtual Joystick - styled like Controle.jpg */
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 150px;
+            pointer-events: auto;
+            display: none; /* Hidden by default, shown on mobile */
+            z-index: 100;
+        }
+        
+        #joystick-outer {
+            width: 100%;
+            height: 100%;
+            background: rgba(100, 100, 100, 0.6);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        
+        /* Triangular indicators around the edge */
+        .joystick-triangle {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 12px solid rgba(80, 80, 80, 0.8);
+        }
+        
+        #joystick-inner {
+            width: 60%;
+            height: 60%;
+            background: rgba(180, 180, 180, 0.7);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            transition: all 0.1s ease-out;
+        }
+        
+        /* Dots in the inner circle */
+        .joystick-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(200, 200, 200, 0.6);
+            border-radius: 50%;
+        }
+        
+        @media (max-width: 768px) {
+            #joystick-container {
+                display: block !important;
+            }
+        }
+
+        /* Menus */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 15, 30, 0.85); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; color: white; z-index: 10;
+            overflow-y: auto;
+        }
+        .hidden { display: none !important; }
+        
+        h1 { font-size: 60px; margin: 0; background: linear-gradient(45deg, #00d2ff, #3a7bd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        h2 { font-size: 30px; margin-bottom: 30px; }
+        p { font-size: 18px; color: #ccc; max-width: 600px; text-align: center; line-height: 1.6; padding: 0 20px; }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 40px; }
+            h2 { font-size: 24px; margin-bottom: 20px; }
+            p { font-size: 14px; }
+        }
+        
+        button {
+            padding: 15px 40px; font-size: 20px; border: none; border-radius: 50px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5); color: white;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; font-weight: bold; margin-top: 20px;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0, 210, 255, 0.6); }
+        
+        @media (max-width: 768px) {
+            button { padding: 12px 30px; font-size: 16px; margin: 10px; }
+        }
+
+        /* Notifications */
+        #message-area {
+            position: absolute; top: 20%; width: 100%; text-align: center;
+            font-size: 32px; font-weight: bold; color: #ffcc00; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            pointer-events: none; opacity: 0; transition: opacity 0.5s;
+        }
+        
+        @media (max-width: 768px) {
+            #message-area { font-size: 24px; top: 15%; }
+        }
+
+        .ranking-box {
+            margin-top: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; width: 300px;
+        }
+        .rank-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding: 5px 0; }
+        
+        @media (max-width: 768px) {
+            .ranking-box { width: 80%; max-width: 300px; }
+        }
+        
+        #pause-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; color: white; z-index: 11;
+            font-size: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            #pause-screen { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="hud-panel" id="hud-top">
+            <div class="stat-box">
+                <div class="stat-label">Altitude</div>
+                <div class="stat-value"><span id="alt-val">3000</span> m</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Pontuação</div>
+                <div class="stat-value" id="score-val">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Velocidade</div>
+                <div class="stat-value"><span id="speed-val">0</span> km/h</div>
+            </div>
+        </div>
+        
+        <div id="crosshair"></div>
+        
+        <div id="altimeter-bar">
+            <div id="altimeter-fill"></div>
+        </div>
+
+        <div id="message-area">PARAQUEDAS ABERTO!</div>
+        
+        <!-- Virtual Joystick -->
+        <div id="joystick-container">
+            <div id="joystick-outer">
+                <div id="joystick-inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1>SKYDIVE PRO</h1>
+        <p>Experimente a emoção da queda livre.</p>
+        <p id="controls-text">
+           🖱️ <b>Mouse/Joystick:</b> Controla a direção.<br>
+           ⭕ <b>Objetivo:</b> Passe pelos anéis dourados para ganhar pontos.<br>
+           ⚠️ <b>Atenção:</b> Evite as nuvens escuras.<br>
+           🪂 <b>Espaço:</b> Abre o paraquedas (somente abaixo de 2500m).<br>
+           📸 <b>Ctrl:</b> Alterna visão (1ª pessoa / 3ª pessoa).<br>
+           ⏸️ <b>P:</b> Pausar/Continuar. 🔄 <b>R:</b> Reiniciar.
+        </p>
+        <button id="btn-start">SALTAR</button>
+        
+        <div class="ranking-box">
+            <h3>🏆 Melhor Pontuação</h3>
+            <div class="rank-row"><span>Recorde:</span> <span id="high-score">0</span></div>
+        </div>
+    </div>
+
+    <div id="end-screen" class="screen hidden">
+        <h1 id="end-title">POUSO BEM SUCEDIDO!</h1>
+        <h2 id="end-score">Pontuação Final: 0</h2>
+        <p id="end-reason"></p>
+        <button id="btn-restart">SALTAR NOVAMENTE</button>
+    </div>
+
+    <div id="pause-screen" class="screen hidden">
+        <h1>JOGO PAUSADO</h1>
+        <p>Pressione 'P' para continuar.</p>
+        <button id="btn-resume-pause">CONTINUAR</button>
+        <button id="btn-restart-pause" style="background: #e74c3c;">REINICIAR</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+        import { ImprovedNoise } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/ImprovedNoise.js';
+
+        // --- Mobile Detection ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        
+        // Update controls text for mobile
+        if (isMobile) {
+            document.getElementById('controls-text').innerHTML = `
+                🕹️ <b>Joystick:</b> Controla a direção.<br>
+                ⭕ <b>Objetivo:</b> Passe pelos anéis dourados para ganhar pontos.<br>
+                ⚠️ <b>Atenção:</b> Evite as nuvens escuras.<br>
+                🪂 <b>Toque na tela:</b> Abre o paraquedas (abaixo de 2500m).<br>
+                📸 <b>Toque duplo:</b> Alterna visão (1ª pessoa / 3ª pessoa).
+            `;
+        }
+
+        // --- Configurações do Jogo ---
+        const START_ALTITUDE = 4000;
+        const DEPLOY_LIMIT = 2500;
+        const GROUND_LEVEL = 0;
+        const GRAVITY = 9.8;
+        const TERMINAL_VELOCITY = 55; // m/s
+        const PARACHUTE_VELOCITY = 5; // m/s
+        const DRAG_COEF = 0.05;
+        const TERRAIN_SIZE = 10000;
+        const TERRAIN_RESOLUTION = 128;
+        const MAX_TERRAIN_HEIGHT = 400;
+
+        // --- Variáveis Globais ---
+        let scene, camera, renderer;
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, ENDED
+        let player = {
+            pos: new THREE.Vector3(0, START_ALTITUDE, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            parachuteOpen: false,
+            score: 0
+        };
+        let mouse = new THREE.Vector2();
+        let keys = { w: false, a: false, s: false, d: false };
+        let joystickInput = new THREE.Vector2();
+        let rings = [];
+        let clouds = [];
+        let terrainMesh;
+        let landingZone;
+        let audioCtx, windNode, gainNode;
+
+        let lastFrameTime = performance.now();
+        let isFirstPerson = true;
+        let playerModel;
+        let characterTexture1, characterTexture2;
+
+        // Elementos DOM
+        const uiAlt = document.getElementById('alt-val');
+        const uiScore = document.getElementById('score-val');
+        const uiSpeed = document.getElementById('speed-val');
+        const uiAltFill = document.getElementById('altimeter-fill');
+        const msgArea = document.getElementById('message-area');
+        const startScreen = document.getElementById('start-screen');
+        const endScreen = document.getElementById('end-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const highScoreEl = document.getElementById('high-score');
+
+        let highScore = localStorage.getItem('skydive_highscore') || 0;
+        highScoreEl.innerText = highScore;
+        
+        // Double tap detection for mobile
+        let lastTap = 0;
+
+        init();
+        animate();
+
+        function init() {
+            // 1. Cena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 100, 20000);
+
+            // 2. Câmera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 30000);
+
+            // 3. Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // 4. Luz
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(2000, 4000, 2000);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 10000;
+            dirLight.shadow.camera.left = -TERRAIN_SIZE;
+            dirLight.shadow.camera.right = TERRAIN_SIZE;
+            dirLight.shadow.camera.top = TERRAIN_SIZE;
+            dirLight.shadow.camera.bottom = -TERRAIN_SIZE;
+            scene.add(dirLight);
+
+            // 5. Load Character Textures
+            const textureLoader = new THREE.TextureLoader();
+            characterTexture1 = textureLoader.load('img1.png');
+            characterTexture2 = textureLoader.load('img2.png');
+
+            // 6. Objetos
+            createTerrain();
+            createClouds();
+            createRings();
+            createPlayerModel();
+            initJoystick();
+
+            // 7. Event Listeners
+            if (!isMobile) {
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('keydown', onKeyDown);
+                document.addEventListener('keyup', onKeyUp);
+            } else {
+                // Mobile touch for parachute deployment and camera toggle
+                let touchStartTime = 0;
+                renderer.domElement.addEventListener('touchstart', (e) => {
+                    touchStartTime = Date.now();
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTap;
+                    if (tapLength < 300 && tapLength > 0) {
+                        // Double tap detected - toggle camera
+                        toggleCamera();
+                    }
+                    lastTap = currentTime;
+                });
+                
+                renderer.domElement.addEventListener('touchend', (e) => {
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (touchDuration < 200 && gameState === 'PLAYING') {
+                        // Quick tap - try to deploy parachute
+                        if (!player.parachuteOpen && player.pos.y < DEPLOY_LIMIT && player.pos.y > 200) {
+                            deployParachute();
+                        }
+                    }
+                });
+            }
+            
+            window.addEventListener('resize', onWindowResize);
+            
+            document.getElementById('btn-start').addEventListener('click', startGame);
+            document.getElementById('btn-restart').addEventListener('click', resetGame);
+            document.getElementById('btn-resume-pause').addEventListener('click', togglePause);
+            document.getElementById('btn-restart-pause').addEventListener('click', resetGame);
+        }
+        
+        function initJoystick() {
+            const container = document.getElementById('joystick-container');
+            const outer = document.getElementById('joystick-outer');
+            const inner = document.getElementById('joystick-inner');
+            
+            // Add triangular indicators (12 around the edge)
+            for (let i = 0; i < 12; i++) {
+                const triangle = document.createElement('div');
+                triangle.className = 'joystick-triangle';
+                const angle = (i * 30) * Math.PI / 180;
+                const radius = 68; // Position on outer edge
+                const x = 50 + radius * Math.cos(angle);
+                const y = 50 + radius * Math.sin(angle);
+                triangle.style.left = x + '%';
+                triangle.style.top = y + '%';
+                triangle.style.transform = `translate(-50%, -50%) rotate(${i * 30 + 180}deg)`;
+                outer.appendChild(triangle);
+            }
+            
+            // Add dots to inner circle (10 dots)
+            for (let i = 0; i < 10; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'joystick-dot';
+                const angle = (i * 36) * Math.PI / 180;
+                const radius = 35; // Position within inner circle
+                const x = 50 + radius * Math.cos(angle);
+                const y = 50 + radius * Math.sin(angle);
+                dot.style.left = x + '%';
+                dot.style.top = y + '%';
+                dot.style.transform = 'translate(-50%, -50%)';
+                inner.appendChild(dot);
+            }
+            
+            // Joystick touch controls
+            let active = false;
+            let startPos = { x: 0, y: 0 };
+            
+            const handleStart = (e) => {
+                active = true;
+                const touch = e.touches ? e.touches[0] : e;
+                const rect = outer.getBoundingClientRect();
+                startPos = {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+            };
+            
+            const handleMove = (e) => {
+                if (!active) return;
+                e.preventDefault();
+                const touch = e.touches ? e.touches[0] : e;
+                const deltaX = touch.clientX - startPos.x;
+                const deltaY = touch.clientY - startPos.y;
+                
+                // Limit movement to outer circle
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const maxDistance = 35; // Maximum movement in pixels
+                
+                if (distance > maxDistance) {
+                    const angle = Math.atan2(deltaY, deltaX);
+                    joystickInput.x = Math.cos(angle);
+                    joystickInput.y = Math.sin(angle);
+                    inner.style.left = `calc(50% + ${Math.cos(angle) * maxDistance}px)`;
+                    inner.style.top = `calc(50% + ${Math.sin(angle) * maxDistance}px)`;
+                } else {
+                    joystickInput.x = deltaX / maxDistance;
+                    joystickInput.y = deltaY / maxDistance;
+                    inner.style.left = `calc(50% + ${deltaX}px)`;
+                    inner.style.top = `calc(50% + ${deltaY}px)`;
+                }
+            };
+            
+            const handleEnd = () => {
+                active = false;
+                joystickInput.set(0, 0);
+                inner.style.left = '50%';
+                inner.style.top = '50%';
+            };
+            
+            outer.addEventListener('touchstart', handleStart);
+            outer.addEventListener('touchmove', handleMove);
+            outer.addEventListener('touchend', handleEnd);
+            outer.addEventListener('touchcancel', handleEnd);
+            
+            // Mouse support for testing on desktop
+            outer.addEventListener('mousedown', handleStart);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+        }
+
+        function createTerrain() {
+            const geometry = new THREE.PlaneGeometry(TERRAIN_SIZE * 2, TERRAIN_SIZE * 2, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
+            
+            const perlin = new ImprovedNoise();
+            const data = [];
+            for (let i = 0; i < TERRAIN_RESOLUTION + 1; i++) {
+                for (let j = 0; j < TERRAIN_RESOLUTION + 1; j++) {
+                    const x = (i / TERRAIN_RESOLUTION) - 0.5;
+                    const y = (j / TERRAIN_RESOLUTION) - 0.5;
+                    let h = 0;
+                    h += perlin.noise(x * 5, y * 5, 0) * 0.5;
+                    h += perlin.noise(x * 10, y * 10, 0) * 0.25;
+                    h += perlin.noise(x * 20, y * 20, 0) * 0.125;
+                    h = Math.pow(h, 2) * MAX_TERRAIN_HEIGHT;
+                    data.push(h);
+                }
+            }
+
+            const vertices = geometry.attributes.position.array;
+            for (let i = 0, j = 0; i < vertices.length; i += 3, j++) {
+                vertices[i + 2] = data[j];
+            }
+            geometry.computeVertexNormals();
+            geometry.rotateX(-Math.PI / 2);
+
+            const material = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                roughness: 0.9,
+                flatShading: true
+            });
+
+            const colors = [];
+            const color = new THREE.Color();
+            for (let i = 0, j = 0; i < vertices.length; i += 3, j++) {
+                const height = data[j];
+                if (height < 20) color.setHex(0x3a5d8a);
+                else if (height < 50) color.setHex(0x4CAF50);
+                else if (height < 150) color.setHex(0x2E7D32);
+                else if (height < 300) color.setHex(0x795548);
+                else color.setHex(0xFFFFFF);
+                colors.push(color.r, color.g, color.b);
+            }
+            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+
+            terrainMesh = new THREE.Mesh(geometry, material);
+            terrainMesh.receiveShadow = true;
+            terrainMesh.castShadow = true;
+            scene.add(terrainMesh);
+
+            // Landing Zone
+            const targetGeo = new THREE.CircleGeometry(50, 32);
+            const targetMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            landingZone = new THREE.Mesh(targetGeo, targetMat);
+            landingZone.rotation.x = -Math.PI / 2;
+            const terrainHeightAtCenter = getHeightAtCoordinates(0, 0);
+            landingZone.position.y = terrainHeightAtCenter + 5;
+            scene.add(landingZone);
+
+            const ringW = new THREE.RingGeometry(30, 35, 32);
+            const matW = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const ringMesh = new THREE.Mesh(ringW, matW);
+            ringMesh.rotation.x = -Math.PI / 2;
+            ringMesh.position.y = landingZone.position.y + 1;
+            scene.add(ringMesh);
+
+            // Decorative elements
+            const farmHouseGeo = new THREE.BoxGeometry(20, 15, 20);
+            const farmHouseMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const farmFieldGeo = new THREE.BoxGeometry(50, 1, 50);
+            const farmFieldMat = new THREE.MeshStandardMaterial({ color: 0xDAA520 });
+            const treeGeo = new THREE.ConeGeometry(5, 20, 8);
+            const treeMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+            const treeTrunkGeo = new THREE.CylinderGeometry(2, 2, 8, 8);
+            const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+
+            for (let i = 0; i < 50; i++) {
+                const x = (Math.random() - 0.5) * TERRAIN_SIZE * 1.8;
+                const z = (Math.random() - 0.5) * TERRAIN_SIZE * 1.8;
+                const y = getHeightAtCoordinates(x, z);
+
+                if (y > 20 && y < 200) {
+                    const house = new THREE.Mesh(farmHouseGeo, farmHouseMat);
+                    house.position.set(x + (Math.random()-0.5)*50, y + 7.5, z + (Math.random()-0.5)*50);
+                    house.castShadow = true;
+                    scene.add(house);
+
+                    const field = new THREE.Mesh(farmFieldGeo, farmFieldMat);
+                    field.position.set(x + (Math.random()-0.5)*80, y + 0.5, z + (Math.random()-0.5)*80);
+                    field.castShadow = true;
+                    scene.add(field);
+
+                    for (let t = 0; t < 5; t++) {
+                        const treeX = x + (Math.random()-0.5)*100;
+                        const treeZ = z + (Math.random()-0.5)*100;
+                        const treeY = getHeightAtCoordinates(treeX, treeZ);
+                        
+                        const trunk = new THREE.Mesh(treeTrunkGeo, treeTrunkMat);
+                        trunk.position.set(treeX, treeY + 4, treeZ);
+                        trunk.castShadow = true;
+                        scene.add(trunk);
+
+                        const tree = new THREE.Mesh(treeGeo, treeMat);
+                        tree.position.set(treeX, treeY + 14, treeZ);
+                        tree.castShadow = true;
+                        scene.add(tree);
+                    }
+                }
+            }
+        }
+
+        function getHeightAtCoordinates(x, z) {
+            const size = TERRAIN_SIZE * 2;
+            const res = TERRAIN_RESOLUTION;
+            const halfSize = size / 2;
+            const ix = Math.floor(((x + halfSize) / size) * res);
+            const iz = Math.floor(((z + halfSize) / size) * res);
+            if (ix < 0 || ix >= res || iz < 0 || iz >= res) return GROUND_LEVEL;
+            const index = iz * (res + 1) + ix;
+            const geometry = terrainMesh.geometry;
+            return geometry.attributes.position.getZ(index);
+        }
+
+        function createClouds() {
+            const cloudGeo = new THREE.BoxGeometry(1, 1, 1);
+            const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            for(let i=0; i<150; i++) {
+                const cloud = new THREE.Group();
+                const chunks = 3 + Math.random() * 5;
+                for(let j=0; j<chunks; j++) {
+                    const mesh = new THREE.Mesh(cloudGeo, cloudMat);
+                    mesh.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*10, (Math.random()-0.5)*20);
+                    mesh.scale.set(10+Math.random()*20, 5+Math.random()*10, 10+Math.random()*20);
+                    cloud.add(mesh);
+                }
+                cloud.position.set((Math.random()-0.5)*TERRAIN_SIZE*1.5, 500+Math.random()*3000, (Math.random()-0.5)*TERRAIN_SIZE*1.5);
+                scene.add(cloud);
+                clouds.push(cloud);
+            }
+        }
+
+        function createRings() {
+            const geometry = new THREE.TorusGeometry(15, 2, 16, 50);
+            const material = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            for(let i=0; i<20; i++) {
+                const ring = new THREE.Mesh(geometry, material);
+                ring.position.set((Math.random()-0.5)*400, 3500-(i*150), (Math.random()-0.5)*400);
+                ring.rotation.x = Math.PI / 2;
+                ring.userData = { active: true, id: i };
+                scene.add(ring);
+                rings.push(ring);
+            }
+        }
+
+        function createPlayerModel() {
+            // Create player group
+            playerModel = new THREE.Group();
+            
+            // Create visible character sprite/plane with texture
+            const bodyGeo = new THREE.PlaneGeometry(40, 40);
+            const bodyMat = new THREE.MeshStandardMaterial({ 
+                map: characterTexture1,
+                transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.1
+            });
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.castShadow = true;
+            playerModel.add(bodyMesh);
+            playerModel.userData.bodyMesh = bodyMesh;
+
+            // Parachute
+            const parachuteGeo = new THREE.SphereGeometry(35, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const parachuteMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.9 });
+            const parachuteMesh = new THREE.Mesh(parachuteGeo, parachuteMat);
+            parachuteMesh.position.y = 30;
+            parachuteMesh.visible = false;
+            playerModel.add(parachuteMesh);
+            playerModel.userData.parachuteMesh = parachuteMesh;
+
+            scene.add(playerModel);
+            playerModel.visible = false; // Start hidden (first-person)
+        }
+
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            windNode = audioCtx.createBufferSource();
+            windNode.buffer = buffer;
+            windNode.loop = true;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0;
+            windNode.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            windNode.start();
+        }
+
+        function updateAudio(speed) {
+            if (!audioCtx || gameState !== 'PLAYING') return;
+            const normalizedSpeed = Math.min(speed / TERMINAL_VELOCITY, 1);
+            gainNode.gain.setTargetAtTime(normalizedSpeed * 0.5, audioCtx.currentTime, 0.1);
+        }
+
+        function startGame() {
+            if (!audioCtx) initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            startScreen.classList.add('hidden');
+            gameState = 'PLAYING';
+            
+            player.pos.set(0, START_ALTITUDE, 0);
+            player.vel.set(0, 0, 0);
+            player.parachuteOpen = false;
+            player.score = 0;
+            
+            rings.forEach(r => {
+                r.visible = true;
+                r.userData.active = true;
+                r.material.color.setHex(0xffd700);
+            });
+            
+            msgArea.style.opacity = 0;
+            playerModel.userData.parachuteMesh.visible = false;
+            if (playerModel.userData.bodyMesh) {
+                playerModel.userData.bodyMesh.material.map = characterTexture1;
+                playerModel.userData.bodyMesh.material.needsUpdate = true;
+            }
+            playerModel.visible = false;
+            isFirstPerson = true;
+            
+            lastFrameTime = performance.now();
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseScreen.classList.remove('hidden');
+                if (audioCtx) audioCtx.suspend();
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseScreen.classList.add('hidden');
+                lastFrameTime = performance.now();
+                if (audioCtx) audioCtx.resume();
+            }
+        }
+
+        function resetGame() {
+            endScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            startGame();
+        }
+
+        function gameOver(reason, success) {
+            gameState = 'ENDED';
+            endScreen.classList.remove('hidden');
+            document.getElementById('end-title').innerText = success ? "POUSO BEM SUCEDIDO!" : "FALHA NA MISSÃO";
+            document.getElementById('end-title').style.color = success ? "#00ff00" : "#ff0000";
+            document.getElementById('end-reason').innerText = reason;
+            if(success) {
+                const dist = Math.sqrt(player.pos.x * player.pos.x + player.pos.z * player.pos.z);
+                const bonus = Math.max(0, Math.floor((50 - dist) * 10)); 
+                player.score += bonus;
+                document.getElementById('end-reason').innerText += ` (Bônus de Pouso: +${bonus})`;
+            }
+            document.getElementById('end-score').innerText = "Pontuação Final: " + player.score;
+            if(player.score > highScore) {
+                highScore = player.score;
+                localStorage.setItem('skydive_highscore', highScore);
+                highScoreEl.innerText = highScore;
+            }
+            if(gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+        }
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function onKeyDown(event) {
+            if (event.code === 'KeyP') togglePause();
+            if (event.code === 'KeyR') resetGame();
+            if (event.key === 'Control') {
+                toggleCamera();
+            }
+            if (event.code === 'Space' && gameState === 'PLAYING') {
+                if (!player.parachuteOpen && player.pos.y < DEPLOY_LIMIT && player.pos.y > 200) {
+                    deployParachute();
+                }
+            }
+            
+            // WASD controls
+            if (event.code === 'KeyW') keys.w = true;
+            if (event.code === 'KeyA') keys.a = true;
+            if (event.code === 'KeyS') keys.s = true;
+            if (event.code === 'KeyD') keys.d = true;
+        }
+        
+        function onKeyUp(event) {
+            if (event.code === 'KeyW') keys.w = false;
+            if (event.code === 'KeyA') keys.a = false;
+            if (event.code === 'KeyS') keys.s = false;
+            if (event.code === 'KeyD') keys.d = false;
+        }
+        
+        function toggleCamera() {
+            isFirstPerson = !isFirstPerson;
+            playerModel.visible = !isFirstPerson;
+        }
+
+        function deployParachute() {
+            player.parachuteOpen = true;
+            showMessage("PARAQUEDAS ABERTO!");
+            player.vel.y = Math.max(player.vel.y, -10);
+            playerModel.userData.parachuteMesh.visible = true;
+            // Swap texture to img2.png
+            if (playerModel.userData.bodyMesh) {
+                playerModel.userData.bodyMesh.material.map = characterTexture2;
+                playerModel.userData.bodyMesh.material.needsUpdate = true;
+            }
+        }
+
+        function showMessage(text) {
+            msgArea.innerText = text;
+            msgArea.style.opacity = 1;
+            setTimeout(() => { msgArea.style.opacity = 0; }, 3000);
+        }
+
+        function updatePhysics(dt) {
+            if (!player.parachuteOpen) {
+                player.vel.y -= GRAVITY * dt;
+                player.vel.y *= (1 - DRAG_COEF * dt);
+                if (player.vel.y < -TERMINAL_VELOCITY) player.vel.y = -TERMINAL_VELOCITY;
+                
+                // Input handling - mobile joystick or PC keyboard
+                if (isMobile) {
+                    player.vel.x += joystickInput.x * 50 * dt;
+                    player.vel.z += joystickInput.y * 50 * dt;
+                } else {
+                    // WASD controls
+                    if (keys.w) player.vel.z -= 50 * dt;
+                    if (keys.s) player.vel.z += 50 * dt;
+                    if (keys.a) player.vel.x -= 50 * dt;
+                    if (keys.d) player.vel.x += 50 * dt;
+                    // Mouse controls (additive)
+                    player.vel.x += mouse.x * 30 * dt;
+                    player.vel.z -= mouse.y * 30 * dt;
+                }
+            } else {
+                player.vel.y = THREE.MathUtils.lerp(player.vel.y, -PARACHUTE_VELOCITY, 2 * dt);
+                
+                if (isMobile) {
+                    player.vel.x += joystickInput.x * 10 * dt;
+                    player.vel.z += joystickInput.y * 10 * dt;
+                } else {
+                    if (keys.w) player.vel.z -= 10 * dt;
+                    if (keys.s) player.vel.z += 10 * dt;
+                    if (keys.a) player.vel.x -= 10 * dt;
+                    if (keys.d) player.vel.x += 10 * dt;
+                    player.vel.x += mouse.x * 10 * dt;
+                    player.vel.z -= mouse.y * 10 * dt;
+                }
+            }
+
+            player.vel.x *= 0.98;
+            player.vel.z *= 0.98;
+            player.pos.addScaledVector(player.vel, dt);
+
+            playerModel.position.copy(player.pos);
+            
+            // Make character sprite face camera in third-person view
+            if (!isFirstPerson && playerModel.userData.bodyMesh) {
+                playerModel.userData.bodyMesh.lookAt(camera.position);
+            }
+            
+            playerModel.rotation.z = -player.vel.x * 0.05;
+            playerModel.rotation.x = player.vel.z * 0.05;
+
+            const terrainHeight = getHeightAtCoordinates(player.pos.x, player.pos.z);
+            if (player.pos.y <= terrainHeight + 2) {
+                if (!player.parachuteOpen) gameOver("Você atingiu o solo em velocidade terminal.", false);
+                else {
+                    const dist = Math.sqrt(player.pos.x*player.pos.x + player.pos.z*player.pos.z);
+                    if(dist < 50) gameOver("Excelente pouso no alvo!", true);
+                    else gameOver("Pouso seguro.", true);
+                }
+                player.pos.y = terrainHeight + 2;
+                gameState = 'ENDED';
+            }
+        }
+
+        function checkCollisions() {
+            rings.forEach(ring => {
+                if(ring.userData.active) {
+                    const dist = player.pos.distanceTo(ring.position);
+                    if(dist < 15 && Math.abs(player.pos.y - ring.position.y) < 10) {
+                        player.score += 100;
+                        ring.userData.active = false;
+                        ring.visible = false;
+                        showMessage("+100 PONTOS!");
+                    }
+                }
+            });
+        }
+
+        function updateCamera() {
+            if (isFirstPerson) {
+                // First person - camera at player position
+                camera.position.copy(player.pos);
+                const lookTarget = new THREE.Vector3(player.pos.x + player.vel.x, player.pos.y - 100, player.pos.z + player.vel.z);
+                camera.lookAt(lookTarget);
+                camera.rotation.z = -player.vel.x * 0.005;
+            } else {
+                // Third person - zoomed out view from above/behind
+                const offset = new THREE.Vector3(0, 80, 150);
+                const cameraPos = player.pos.clone().add(offset);
+                camera.position.lerp(cameraPos, 0.1);
+                camera.lookAt(player.pos);
+            }
+        }
+
+        function updateHUD() {
+            uiAlt.innerText = Math.max(0, Math.floor(player.pos.y));
+            uiScore.innerText = player.score;
+            uiSpeed.innerText = Math.floor(Math.abs(player.vel.y) * 3.6);
+            const pct = Math.min(player.pos.y / START_ALTITUDE, 1);
+            uiAltFill.style.transform = `scaleY(${pct})`;
+
+            if (player.pos.y < DEPLOY_LIMIT && !player.parachuteOpen && player.pos.y > 200) {
+                if (isMobile) {
+                    msgArea.innerText = "TOQUE NA TELA PARA ABRIR!";
+                } else {
+                    msgArea.innerText = "PRESSIONE ESPAÇO PARA ABRIR!";
+                }
+                msgArea.style.opacity = (Math.floor(Date.now() / 200) % 2 === 0) ? 1 : 0;
+                msgArea.style.color = "red";
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const dt = Math.min((time - lastFrameTime) / 1000, 0.1);
+            lastFrameTime = time;
+
+            if (gameState === 'PLAYING') {
+                updatePhysics(dt);
+                checkCollisions();
+                updateAudio(Math.abs(player.vel.y));
+                updateHUD();
+            }
+
+            updateCamera();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
