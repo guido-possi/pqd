@@ -353,7 +353,7 @@
             dirLight.shadow.camera.bottom = -TERRAIN_SIZE;
             scene.add(dirLight);
 
-            // 5. Load Character Textures
+            // 5. Load Character Textures (embedded as base64 Data URLs)
             const textureLoader = new THREE.TextureLoader();
             characterTexture1 = textureLoader.load('img1.png');
             characterTexture2 = textureLoader.load('img2.png');
