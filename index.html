@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SkyDive Pro: Queda Livre v2.0</title>
+    <title>SkyDive Pro: Ranking Edition</title>
     <style>
         /* --- UI & UX --- */
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; user-select: none; touch-action: none; }
@@ -20,6 +20,7 @@
             display: flex; justify-content: space-between; align-items: flex-start;
             flex-wrap: wrap;
             z-index: 5;
+            width: 100%; box-sizing: border-box;
         }
         .stat-box { background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 8px; backdrop-filter: blur(5px); border-left: 4px solid #00d2ff; margin: 5px; }
         .stat-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
@@ -32,28 +33,13 @@
             .stat-value { font-size: 18px; }
         }
         
-        /* MIRA / CROSSHAIR */
+        /* MIRA (Sempre img3.png agora) */
         #crosshair {
-            width: 40px; height: 40px; 
+            width: 64px; height: 64px; 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            z-index: 4;
-        }
-        /* Estilo padrão (bolinha) para 1ª pessoa */
-        .crosshair-dot {
-            width: 20px !important; height: 20px !important;
-            border: 2px solid rgba(255,255,255,0.8); border-radius: 50%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            background: transparent;
-        }
-        /* Estilo imagem para 3ª pessoa */
-        .crosshair-img {
             background-image: url('img3.png');
-            width: 64px !important; height: 64px !important;
-            border: none !important; border-radius: 0 !important;
-            box-shadow: none !important;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            z-index: 4; opacity: 0.8;
         }
 
         #altimeter-bar {
@@ -64,87 +50,84 @@
             width: 100%; height: 100%; background: linear-gradient(to top, #ff0000, #ffff00, #00ff00);
             transform-origin: bottom; transform: scaleY(1); transition: transform 0.1s;
         }
-        
-        @media (max-width: 768px) {
-            #altimeter-bar { height: 200px; width: 8px; right: 10px; }
-        }
 
         /* Virtual Joystick */
         #joystick-container {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 150px; height: 150px;
-            pointer-events: auto;
-            display: none; /* Controlled via JS now */
-            z-index: 100;
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 150px; height: 150px; pointer-events: auto; display: none; z-index: 100;
         }
-        
         #joystick-outer {
-            width: 100%; height: 100%;
-            background: rgba(100, 100, 100, 0.4);
-            border-radius: 50%;
-            position: relative;
-            border: 2px solid rgba(255,255,255,0.1);
+            width: 100%; height: 100%; background: rgba(100, 100, 100, 0.4);
+            border-radius: 50%; position: relative; border: 2px solid rgba(255,255,255,0.1);
         }
-        
         #joystick-inner {
-            width: 60%; height: 60%;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+            width: 60%; height: 60%; background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); box-shadow: 0 0 15px rgba(255,255,255,0.1);
         }
 
-        /* NOVOS BOTÕES MOBILE */
-        .mobile-controls-area {
+        /* CONTROLES LATERAIS */
+        .controls-layer {
             position: absolute; bottom: 40px; width: 100%;
             display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
             pointer-events: none;
         }
-        .mobile-btn {
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            background: rgba(0, 210, 255, 0.5);
-            border: 2px solid #fff;
-            color: white; font-weight: bold; font-size: 12px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            pointer-events: auto;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-            transition: transform 0.1s, background 0.2s;
-            text-transform: uppercase; text-align: center;
-        }
-        .mobile-btn:active { transform: scale(0.9); background: rgba(0, 210, 255, 0.8); }
         
-        /* Esconde botões no desktop se quiser, mas deixaremos visível para teste se redimensionar */
-        @media (min-width: 769px) {
-            .mobile-controls-area { display: none; }
+        .btn-group-left { display: flex; gap: 15px; pointer-events: auto; }
+        
+        .game-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255,255,255,0.5);
+            color: white; font-size: 24px; display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px); transition: 0.1s; cursor: pointer;
         }
+        .game-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.4); }
+        .game-btn.red { background: rgba(255, 50, 50, 0.4); }
+        
+        .btn-chute {
+            width: 90px; height: 90px; border-radius: 50%;
+            background: rgba(255, 100, 0, 0.6); border: 2px solid #fff;
+            color: white; font-weight: bold; font-size: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; backdrop-filter: blur(4px);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: 0.1s; text-transform: uppercase;
+        }
+        .btn-chute:active { transform: scale(0.95); }
 
-        /* Menus */
+        /* Menus & Ranking */
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 15, 30, 0.90); backdrop-filter: blur(10px);
+            background: rgba(0, 15, 30, 0.92); backdrop-filter: blur(10px);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            pointer-events: auto; color: white; z-index: 200;
-            overflow-y: auto;
+            pointer-events: auto; color: white; z-index: 200; overflow-y: auto;
         }
         .hidden { display: none !important; }
         
-        h1 { font-size: 60px; margin: 0; background: linear-gradient(45deg, #00d2ff, #3a7bd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        h2 { font-size: 30px; margin-bottom: 20px; color: #eee; }
-        h3 { color: #00d2ff; margin-top: 0; }
-        p { font-size: 18px; color: #ccc; max-width: 600px; text-align: center; line-height: 1.6; padding: 0 20px; }
+        h1 { font-size: 50px; margin: 10px; background: linear-gradient(45deg, #00d2ff, #3a7bd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        h2 { font-size: 24px; color: #eee; margin: 5px; }
         
+        input[type="text"] {
+            padding: 10px 15px; font-size: 18px; border-radius: 8px; border: none;
+            margin: 15px 0; text-align: center; width: 250px; text-transform: uppercase;
+            font-weight: bold; letter-spacing: 1px;
+        }
+
         button {
             padding: 15px 40px; font-size: 20px; border: none; border-radius: 50px;
             background: linear-gradient(90deg, #00d2ff, #3a7bd5); color: white;
-            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; font-weight: bold; margin-top: 20px;
+            cursor: pointer; transition: transform 0.2s; font-weight: bold; margin-top: 20px;
         }
-        button:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(0, 210, 255, 0.6); }
+        button:hover { transform: scale(1.05); }
+
+        /* TABELA DE RANKING */
+        .ranking-container {
+            margin-top: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;
+            width: 90%; max-width: 400px; max-height: 250px; overflow-y: auto;
+        }
+        .ranking-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .ranking-table th { text-align: left; color: #00d2ff; padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .ranking-table td { padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .ranking-row-highlight { background: rgba(0, 210, 255, 0.2); }
 
         /* Notifications */
         #message-area {
@@ -162,19 +145,19 @@
         <div class="hud-panel">
             <div class="stat-box">
                 <div class="stat-label">Altitude</div>
-                <div class="stat-value"><span id="alt-val">4000</span> m</div>
+                <div class="stat-value"><span id="alt-val">4500</span> m</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">Pontos</div>
                 <div class="stat-value" id="score-val">0</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">Nível</div>
-                <div class="stat-value" id="level-val">1</div>
+                <div class="stat-label">Tempo</div>
+                <div class="stat-value"><span id="time-val">0.0</span>s</div>
             </div>
         </div>
         
-        <div id="crosshair" class="crosshair-dot"></div>
+        <div id="crosshair"></div>
         
         <div id="altimeter-bar">
             <div id="altimeter-fill"></div>
@@ -188,12 +171,13 @@
             </div>
         </div>
 
-        <div class="mobile-controls-area">
-            <div id="btn-cam-mobile" class="mobile-btn">
-                📷<br>Visão
+        <div class="controls-layer" id="game-controls">
+            <div class="btn-group-left">
+                <div id="btn-pause" class="game-btn">⏸️</div>
+                <div id="btn-reset-ingame" class="game-btn red">🔄</div>
             </div>
-            <div style="width: 100px;"></div> 
-            <div id="btn-chute-mobile" class="mobile-btn" style="background: rgba(255, 100, 0, 0.6);">
+            
+            <div id="btn-chute-mobile" class="btn-chute">
                 🪂<br>Abrir
             </div>
         </div>
@@ -201,58 +185,64 @@
 
     <div id="start-screen" class="screen">
         <h1>SKYDIVE PRO</h1>
-        <h2>Mobile Edition</h2>
-        <p>
-           <b>Objetivo:</b> Atravesse os anéis para pontuar.<br>
-           <b>Controles Mobile:</b> Use o joystick central para mover.<br>
-           Botão ESQUERDO troca a câmera.<br>
-           Botão DIREITO abre/fecha o paraquedas.<br>
-           Você pode abrir o paraquedas a qualquer momento!
-        </p>
-        <button id="btn-start">INICIAR MISSÃO</button>
+        <p>Digite seu nome para o ranking:</p>
+        <input type="text" id="player-name-input" placeholder="SEU NOME" maxlength="10">
         
-        <div style="margin-top: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px;">
-            <div style="display: flex; justify-content: space-between; width: 200px;">
-                <span>Recorde:</span> <span id="high-score">0</span>
-            </div>
+        <button id="btn-start">SALTAR</button>
+        
+        <div class="ranking-container">
+            <h3>🏆 TOP PILOTOS</h3>
+            <table class="ranking-table" id="ranking-table-start">
+                </table>
         </div>
     </div>
 
     <div id="end-screen" class="screen hidden">
         <h1 id="end-title">FIM DE JOGO</h1>
-        <h2 id="end-score">Pontuação: 0</h2>
+        <h2 id="end-score">Pontos: 0 | Tempo: 0s</h2>
         <p id="end-reason"></p>
-        <button id="btn-restart">PRÓXIMO SALTO</button>
+        <button id="btn-restart">SALTAR NOVAMENTE</button>
+        
+        <div class="ranking-container">
+            <table class="ranking-table" id="ranking-table-end"></table>
+        </div>
     </div>
 
     <div id="pause-screen" class="screen hidden">
-        <h1>PAUSADO</h1>
+        <h1>JOGO PAUSADO</h1>
         <button id="btn-resume-pause">CONTINUAR</button>
         <button id="btn-restart-pause" style="background: #e74c3c;">REINICIAR</button>
+        
+        <div class="ranking-container">
+            <h3>🏆 RANKING ATUAL</h3>
+            <table class="ranking-table" id="ranking-table-pause"></table>
+        </div>
     </div>
 
     <script type="module">
         import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
         import { ImprovedNoise } from 'https://unpkg.com/three@0.160.0/examples/jsm/math/ImprovedNoise.js';
 
-        // --- Configurações do Jogo Modificadas ---
+        // --- Configurações ---
         const START_ALTITUDE = 4500;
         const GRAVITY = 9.8;
-        const TERMINAL_VELOCITY = 95; // AUMENTADO (era 55) para ser mais rápido
+        const TERMINAL_VELOCITY = 95; 
         const PARACHUTE_VELOCITY = 8; 
-        const DRAG_COEF = 0.05;
+        const MOVE_SPEED_FREEFALL = 120;
+        const MOVE_SPEED_CHUTE = 30;
         const TERRAIN_SIZE = 10000;
         const TERRAIN_RESOLUTION = 128;
-        
-        // Sensibilidade de movimento
-        const MOVE_SPEED_FREEFALL = 120; // AUMENTADO para mais mobilidade
-        const MOVE_SPEED_CHUTE = 30;
 
-        // --- Variáveis Globais ---
+        // --- Globais ---
         let scene, camera, renderer;
         let gameState = 'MENU';
         let currentLevel = 1;
-        let terrainSeed = 0; // Para randomizar o terreno
+        let terrainSeed = 0;
+        let playerName = "JOGADOR";
+        
+        // Cronômetro
+        let startTime = 0;
+        let elapsedTime = 0;
         
         let player = {
             pos: new THREE.Vector3(0, START_ALTITUDE, 0),
@@ -267,62 +257,54 @@
         
         let rings = [];
         let clouds = [];
-        let terrainMesh;
-        let landingZone;
-        
-        // Áudio
-        let audioCtx, windNode, gainNode;
-
-        let lastFrameTime = performance.now();
-        let isFirstPerson = true;
+        let terrainMesh, landingZone;
         let playerModel;
         let characterTexture1, characterTexture2;
+        let audioCtx, windNode, gainNode;
+        let lastFrameTime = performance.now();
 
-        // Elementos DOM
+        // DOM Elements
         const uiAlt = document.getElementById('alt-val');
         const uiScore = document.getElementById('score-val');
-        const uiLevel = document.getElementById('level-val');
+        const uiTime = document.getElementById('time-val');
         const uiAltFill = document.getElementById('altimeter-fill');
         const msgArea = document.getElementById('message-area');
-        const crosshair = document.getElementById('crosshair');
         const joystickContainer = document.getElementById('joystick-container');
+        const gameControls = document.getElementById('game-controls');
         
         const startScreen = document.getElementById('start-screen');
         const endScreen = document.getElementById('end-screen');
         const pauseScreen = document.getElementById('pause-screen');
-        const highScoreEl = document.getElementById('high-score');
+        const nameInput = document.getElementById('player-name-input');
         
         const btnChute = document.getElementById('btn-chute-mobile');
-        const btnCam = document.getElementById('btn-cam-mobile');
-
-        let highScore = localStorage.getItem('skydive_highscore_v2') || 0;
-        highScoreEl.innerText = highScore;
+        const btnPause = document.getElementById('btn-pause');
+        const btnResetIngame = document.getElementById('btn-reset-ingame');
 
         init();
         animate();
 
         function init() {
+            // Cena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.Fog(0x87CEEB, 100, 18000);
 
+            // Câmera (Configurada para visão Top-Down e não muda mais)
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 30000);
 
+            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            // Luzes
+            // Luz
             const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
             scene.add(hemiLight);
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
             dirLight.position.set(2000, 4000, 2000);
             dirLight.castShadow = true;
-            dirLight.shadow.camera.top = TERRAIN_SIZE;
-            dirLight.shadow.camera.bottom = -TERRAIN_SIZE;
-            dirLight.shadow.camera.left = -TERRAIN_SIZE;
-            dirLight.shadow.camera.right = TERRAIN_SIZE;
             scene.add(dirLight);
 
             // Texturas
@@ -330,33 +312,80 @@
             characterTexture1 = textureLoader.load('img1.png');
             characterTexture2 = textureLoader.load('img2.png');
 
-            // Inicialização de objetos
             createPlayerModel();
             initJoystick();
+            updateLeaderboardUI(); // Carrega ranking salvo
 
-            // Event Listeners
+            // Eventos
             window.addEventListener('resize', onWindowResize);
-            
-            // Mouse/Teclado PC
-            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
 
-            // Botões Mobile
+            // Botões Touch/Click
             btnChute.addEventListener('touchstart', (e) => { e.preventDefault(); toggleParachute(); });
             btnChute.addEventListener('mousedown', (e) => { e.preventDefault(); toggleParachute(); });
             
-            btnCam.addEventListener('touchstart', (e) => { e.preventDefault(); toggleCamera(); });
-            btnCam.addEventListener('mousedown', (e) => { e.preventDefault(); toggleCamera(); });
+            btnPause.addEventListener('click', togglePause);
+            btnResetIngame.addEventListener('click', resetGame);
 
             document.getElementById('btn-start').addEventListener('click', startGame);
             document.getElementById('btn-restart').addEventListener('click', resetGame);
             document.getElementById('btn-resume-pause').addEventListener('click', togglePause);
             document.getElementById('btn-restart-pause').addEventListener('click', resetGame);
+            
+            // Esconde controles do jogo inicialmente
+            joystickContainer.style.display = 'none';
+            gameControls.style.display = 'none';
         }
 
+        // --- Sistema de Ranking ---
+        function saveToLeaderboard(name, score, time) {
+            let ranking = JSON.parse(localStorage.getItem('skydive_ranking_v3')) || [];
+            
+            ranking.push({ name: name || "ANÔNIMO", score: score, time: parseFloat(time) });
+            
+            // Ordenar: Maior Pontuação > Menor Tempo
+            ranking.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return a.time - b.time;
+            });
+            
+            // Manter Top 10
+            ranking = ranking.slice(0, 10);
+            localStorage.setItem('skydive_ranking_v3', JSON.stringify(ranking));
+            updateLeaderboardUI();
+        }
+
+        function updateLeaderboardUI() {
+            const ranking = JSON.parse(localStorage.getItem('skydive_ranking_v3')) || [];
+            const tables = ['ranking-table-start', 'ranking-table-pause', 'ranking-table-end'];
+            
+            tables.forEach(id => {
+                const el = document.getElementById(id);
+                if(!el) return;
+                
+                let html = '<tr><th>#</th><th>NOME</th><th>PTS</th><th>TEMPO</th></tr>';
+                ranking.forEach((r, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${r.name}</td>
+                            <td>${r.score}</td>
+                            <td>${r.time}s</td>
+                        </tr>
+                    `;
+                });
+                if(ranking.length === 0) html += '<tr><td colspan="4" style="text-align:center; color:#888;">Sem registros</td></tr>';
+                el.innerHTML = html;
+            });
+        }
+
+        // --- Geração de Mundo ---
         function generateLevel(level) {
-            // Limpar nível anterior
             if(terrainMesh) scene.remove(terrainMesh);
             if(landingZone) scene.remove(landingZone);
             rings.forEach(r => scene.remove(r));
@@ -364,7 +393,6 @@
             clouds.forEach(c => scene.remove(c));
             clouds = [];
 
-            // Randomizar semente do terreno baseado no nível
             terrainSeed = Math.random() * 1000 + level * 100;
             createTerrain(terrainSeed);
             createClouds();
@@ -375,17 +403,14 @@
             const geometry = new THREE.PlaneGeometry(TERRAIN_SIZE * 2, TERRAIN_SIZE * 2, TERRAIN_RESOLUTION, TERRAIN_RESOLUTION);
             const perlin = new ImprovedNoise();
             const data = [];
-            const zScale = 400;
-
+            
             for (let i = 0; i < TERRAIN_RESOLUTION + 1; i++) {
                 for (let j = 0; j < TERRAIN_RESOLUTION + 1; j++) {
                     const x = (i / TERRAIN_RESOLUTION) - 0.5;
                     const y = (j / TERRAIN_RESOLUTION) - 0.5;
-                    // Usando seed offset
                     let h = perlin.noise(x * 5 + seed, y * 5 + seed, 0) * 0.5;
                     h += perlin.noise(x * 10 + seed, y * 10 + seed, 0) * 0.25;
-                    h = Math.pow(Math.abs(h), 2) * zScale;
-                    data.push(h);
+                    data.push(Math.pow(Math.abs(h), 2) * 400);
                 }
             }
 
@@ -401,10 +426,10 @@
             const color = new THREE.Color();
             for (let i = 0, j = 0; i < vertices.length; i += 3, j++) {
                 const h = data[j];
-                if (h < 20) color.setHex(0x204070); // Água
-                else if (h < 80) color.setHex(0x228b22); // Grama
-                else if (h < 200) color.setHex(0x8b4513); // Terra
-                else color.setHex(0xffffff); // Neve
+                if (h < 20) color.setHex(0x204070); 
+                else if (h < 80) color.setHex(0x228b22);
+                else if (h < 200) color.setHex(0x8b4513);
+                else color.setHex(0xffffff);
                 colors.push(color.r, color.g, color.b);
             }
             geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
@@ -413,49 +438,26 @@
             terrainMesh.receiveShadow = true;
             scene.add(terrainMesh);
 
-            // Zona de Pouso (Alvo)
-            const targetGeo = new THREE.CircleGeometry(80, 32); // Maior
+            // Alvo
+            const targetGeo = new THREE.CircleGeometry(80, 32);
             const targetMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
             landingZone = new THREE.Mesh(targetGeo, targetMat);
             landingZone.rotation.x = -Math.PI / 2;
-            const hCenter = getHeightAtCoordinates(0, 0);
-            landingZone.position.y = hCenter + 5;
+            landingZone.position.y = 25; 
             scene.add(landingZone);
         }
 
-        function getHeightAtCoordinates(x, z) {
-            // Função simplificada de altura
-            // Em uma implementação real complexa, raycasting é melhor, mas aqui estimamos pelo grid
-            // Retorna base segura
-            return 20; 
-        }
-
         function createRings(level) {
-            const geometry = new THREE.TorusGeometry(25, 4, 16, 50); // Anéis maiores
+            const geometry = new THREE.TorusGeometry(25, 4, 16, 50);
             const material = new THREE.MeshBasicMaterial({ color: 0xffd700 });
-            
-            let pattern = level % 3; // 0: Linha/Curva, 1: Espiral, 2: Random
+            let pattern = level % 3;
             
             for(let i=0; i < 25; i++) {
                 const ring = new THREE.Mesh(geometry, material);
-                let x, z;
-                let y = 4000 - (i * 150); // Espaçamento vertical
-
-                if (pattern === 0) {
-                    // Curva suave
-                    x = Math.sin(i * 0.3) * 300;
-                    z = Math.cos(i * 0.3) * 300;
-                } else if (pattern === 1) {
-                    // Espiral larga
-                    const radius = 500 - (i * 10);
-                    const angle = i * 0.8;
-                    x = Math.cos(angle) * radius;
-                    z = Math.sin(angle) * radius;
-                } else {
-                    // Aleatório disperso (difícil)
-                    x = (Math.random() - 0.5) * 1000;
-                    z = (Math.random() - 0.5) * 1000;
-                }
+                let x, z, y = 4000 - (i * 150);
+                if (pattern === 0) { x = Math.sin(i*0.3)*300; z = Math.cos(i*0.3)*300; }
+                else if (pattern === 1) { let r = 500-(i*10); x = Math.cos(i*0.8)*r; z = Math.sin(i*0.8)*r; }
+                else { x = (Math.random()-0.5)*1000; z = (Math.random()-0.5)*1000; }
 
                 ring.position.set(x, y, z);
                 ring.rotation.x = Math.PI / 2;
@@ -492,8 +494,14 @@
             playerModel.add(bodyMesh);
             playerModel.userData.bodyMesh = bodyMesh;
 
+            // Paraquedas: Transparência definida em 0.5 (50%)
             const parachuteGeo = new THREE.SphereGeometry(35, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-            const parachuteMat = new THREE.MeshStandardMaterial({ color: 0xff6600, side: THREE.DoubleSide });
+            const parachuteMat = new THREE.MeshStandardMaterial({ 
+                color: 0xff6600, 
+                side: THREE.DoubleSide, 
+                transparent: true, 
+                opacity: 0.5 
+            });
             const parachuteMesh = new THREE.Mesh(parachuteGeo, parachuteMat);
             parachuteMesh.position.y = 30;
             parachuteMesh.visible = false;
@@ -537,19 +545,16 @@
             };
 
             outer.addEventListener('touchstart', handleStart);
-            document.addEventListener('touchmove', handleMove); // Document para não perder se sair da área
+            document.addEventListener('touchmove', handleMove);
             document.addEventListener('touchend', handleEnd);
             outer.addEventListener('mousedown', handleStart);
             document.addEventListener('mousemove', handleMove);
             document.addEventListener('mouseup', handleEnd);
         }
 
-        // --- Sistema de Áudio Simplificado ---
         function initAudio() {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AudioContext();
-            
-            // Som de Vento
             const bufferSize = audioCtx.sampleRate * 2;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -571,7 +576,7 @@
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
             g.gain.setValueAtTime(0.1, audioCtx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
@@ -581,36 +586,33 @@
         }
 
         function startGame() {
+            if(nameInput.value.trim() !== "") playerName = nameInput.value.trim().toUpperCase();
+            
             if (!audioCtx) initAudio();
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             startScreen.classList.add('hidden');
-            joystickContainer.style.display = 'block'; // Mostra joystick só agora
+            joystickContainer.style.display = 'block';
+            gameControls.style.display = 'flex';
             
             gameState = 'PLAYING';
-            
-            // Gera nível
             generateLevel(currentLevel);
-            uiLevel.innerText = currentLevel;
-
+            
             player.pos.set(0, START_ALTITUDE, 0);
             player.vel.set(0, 0, 0);
             player.parachuteOpen = false;
             player.score = 0;
+            startTime = performance.now();
+            elapsedTime = 0;
             
             updatePlayerVisuals();
-            isFirstPerson = true;
-            updateCrosshairVisual();
-            
             lastFrameTime = performance.now();
             showMessage("MISSÃO INICIADA!");
         }
 
         function toggleParachute() {
             if(gameState !== 'PLAYING') return;
-            
             player.parachuteOpen = !player.parachuteOpen;
-            
             if (player.parachuteOpen) {
                 showMessage("PARAQUEDAS ABERTO!");
                 btnChute.innerHTML = "✂️<br>CORTAR";
@@ -630,20 +632,6 @@
             }
         }
 
-        function toggleCamera() {
-            isFirstPerson = !isFirstPerson;
-            playerModel.visible = !isFirstPerson;
-            updateCrosshairVisual();
-        }
-
-        function updateCrosshairVisual() {
-            if(isFirstPerson) {
-                crosshair.className = "crosshair-dot";
-            } else {
-                crosshair.className = "crosshair-img";
-            }
-        }
-
         function showMessage(text) {
             msgArea.innerText = text;
             msgArea.style.opacity = 1;
@@ -655,11 +643,14 @@
                 gameState = 'PAUSED';
                 pauseScreen.classList.remove('hidden');
                 joystickContainer.style.display = 'none';
+                gameControls.style.display = 'none';
                 if (audioCtx) audioCtx.suspend();
+                updateLeaderboardUI();
             } else if (gameState === 'PAUSED') {
                 gameState = 'PLAYING';
                 pauseScreen.classList.add('hidden');
                 joystickContainer.style.display = 'block';
+                gameControls.style.display = 'flex';
                 lastFrameTime = performance.now();
                 if (audioCtx) audioCtx.resume();
             }
@@ -668,22 +659,19 @@
         function resetGame() {
             endScreen.classList.add('hidden');
             pauseScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
             joystickContainer.style.display = 'none';
-            // Se morreu, reseta nível? Ou mantém? Vamos manter para tentar de novo.
-            startGame();
+            gameControls.style.display = 'none';
+            gameState = 'MENU';
         }
 
-        function onMouseMove(e) {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        }
         function onKeyDown(e) {
             if(e.key === 'w') keys.w = true;
             if(e.key === 's') keys.s = true;
             if(e.key === 'a') keys.a = true;
             if(e.key === 'd') keys.d = true;
             if(e.key === ' ') toggleParachute();
-            if(e.key === 'Control') toggleCamera();
+            if(e.key === 'p') togglePause();
         }
         function onKeyUp(e) {
             if(e.key === 'w') keys.w = false;
@@ -696,14 +684,12 @@
             const speed = player.parachuteOpen ? PARACHUTE_VELOCITY : TERMINAL_VELOCITY;
             const moveSpeed = player.parachuteOpen ? MOVE_SPEED_CHUTE : MOVE_SPEED_FREEFALL;
             
-            // Gravidade vs Drag
             let targetYVel = -speed;
             player.vel.y = THREE.MathUtils.lerp(player.vel.y, targetYVel, dt * 2);
 
-            // Movimento Horizontal
             let mx = joystickInput.x;
             let mz = joystickInput.y;
-            if (!mx && !mz) { // Se não tem joystick, usa teclado/mouse
+            if (!mx && !mz) {
                 mx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + mouse.x;
                 mz = (keys.s ? 1 : 0) - (keys.w ? 1 : 0) - mouse.y;
             }
@@ -713,14 +699,11 @@
 
             player.pos.addScaledVector(player.vel, dt);
 
-            // Rotação do modelo
             playerModel.position.copy(player.pos);
-            if (!isFirstPerson) playerModel.userData.bodyMesh.lookAt(camera.position);
-            playerModel.rotation.z = -player.vel.x * 0.002; // Inclinação visual
+            playerModel.rotation.z = -player.vel.x * 0.002;
             playerModel.rotation.x = player.vel.z * 0.002;
 
-            // Chão
-            if (player.pos.y <= 20) {
+            if (player.pos.y <= 25) { // Altura do terreno aproximada
                 handleLanding();
             }
         }
@@ -728,7 +711,6 @@
         function checkCollisions() {
             rings.forEach(ring => {
                 if(ring.userData.active) {
-                    // Raio aumentado para 40 (era 15) para pegar nas bordas
                     const dist = Math.sqrt( Math.pow(player.pos.x - ring.position.x, 2) + Math.pow(player.pos.z - ring.position.z, 2) );
                     const vDist = Math.abs(player.pos.y - ring.position.y);
                     
@@ -746,12 +728,15 @@
         function handleLanding() {
             gameState = 'ENDED';
             joystickContainer.style.display = 'none';
+            gameControls.style.display = 'none';
+            
             const distToCenter = Math.sqrt(player.pos.x**2 + player.pos.z**2);
+            const finalTime = ((performance.now() - startTime) / 1000).toFixed(2);
             
             if (!player.parachuteOpen) {
                 document.getElementById('end-title').innerText = "VOCÊ SE ARREBENTOU!";
                 document.getElementById('end-title').style.color = "red";
-                document.getElementById('end-reason').innerText = "Esqueceu o paraquedas?";
+                document.getElementById('end-reason').innerText = "Paraquedas não acionado.";
             } else {
                 document.getElementById('end-title').innerText = "POUSO BEM SUCEDIDO!";
                 document.getElementById('end-title').style.color = "#00ff00";
@@ -762,38 +747,31 @@
                 player.score += bonus;
                 document.getElementById('end-reason').innerText = `Bônus de Alvo: +${bonus}`;
                 
-                // Avança nível
+                saveToLeaderboard(playerName, player.score, finalTime);
                 currentLevel++;
             }
 
             endScreen.classList.remove('hidden');
-            document.getElementById('end-score').innerText = "Pontuação Final: " + player.score;
-            
-            if(player.score > highScore) {
-                highScore = player.score;
-                localStorage.setItem('skydive_highscore_v2', highScore);
-                highScoreEl.innerText = highScore;
-            }
+            document.getElementById('end-score').innerText = `Pontos: ${player.score} | Tempo: ${finalTime}s`;
             
             if(gainNode) gainNode.gain.value = 0;
         }
 
         function updateCamera() {
-            if (isFirstPerson) {
-                camera.position.copy(player.pos);
-                // Olha levemente para baixo na direção do movimento
-                const target = player.pos.clone().add(new THREE.Vector3(player.vel.x, -100, player.vel.z));
-                camera.lookAt(target);
-            } else {
-                // Visão Top-Down estilo drone
-                camera.position.set(player.pos.x, player.pos.y + 150, player.pos.z + 50);
-                camera.lookAt(player.pos);
-            }
+            // Câmera Fixa em Terceira Pessoa (Top-Down/Drone)
+            // Segue o jogador, mas olha de cima
+            camera.position.set(player.pos.x, player.pos.y + 120, player.pos.z + 40);
+            camera.lookAt(player.pos);
         }
 
         function updateHUD() {
-            uiAlt.innerText = Math.floor(player.pos.y);
+            uiAlt.innerText = Math.max(0, Math.floor(player.pos.y));
             uiScore.innerText = player.score;
+            
+            // Atualiza tempo
+            elapsedTime = (performance.now() - startTime) / 1000;
+            uiTime.innerText = elapsedTime.toFixed(1) + 's';
+
             const pct = Math.max(0, Math.min(player.pos.y / START_ALTITUDE, 1));
             uiAltFill.style.transform = `scaleY(${pct})`;
             
